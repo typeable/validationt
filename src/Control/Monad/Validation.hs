@@ -1,4 +1,4 @@
-module Common.Monad.Validation where
+module Control.Monad.Validation where
 
 import Control.Lens hiding ((.=))
 import Control.Monad.Base
