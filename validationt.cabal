@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                validationt
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Straightforward validation monad. Convenient solution for validating web forms and APIs.
 -- description:
 homepage:            typeable.io
