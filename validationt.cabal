@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                validationt
-version:             0.1.0.1
+version:             0.1.1.0
 synopsis:            Straightforward validation monad. Convenient solution for validating web forms and APIs.
 -- description:
 homepage:            typeable.io
@@ -22,7 +22,16 @@ library
   -- other-extensions:
   build-depends:       base >=4.8 && < 5
                      , aeson >= 1.0
-                     , transformers
+                     , containers
+                     , exceptions
                      , lens
+                     , monad-control
+                     , mtl
+                     , QuickCheck
+                     , text
+                     , transformers
+                     , transformers-base
+                     , transformers-lift
+                     , vector
   hs-source-dirs:      src
   default-language:    Haskell2010
