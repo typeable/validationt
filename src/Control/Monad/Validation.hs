@@ -16,6 +16,7 @@ import Data.Foldable as F
 import Data.List as L
 import Data.Map.Strict as M
 import Data.Monoid
+import qualified Data.Semigroup as S
 import Data.Text as T
 import Data.Vector as V
 import Test.QuickCheck
@@ -46,6 +47,10 @@ instance (Ord k) => Ixed (MonoidMap k v) where
   ix key = _MonoidMap . ix key
 instance (Ord k) => At (MonoidMap k v) where
   at key = _MonoidMap . at key
+
+instance (Ord k, S.Semigroup v) => S.Semigroup (MonoidMap k v) where
+  (MonoidMap a) <> (MonoidMap b) =
+    MonoidMap $ M.unionWith (S.<>) a b
 
 instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap M.empty
