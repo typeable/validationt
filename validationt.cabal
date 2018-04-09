@@ -3,9 +3,9 @@
 
 name:                validationt
 version:             0.2.0.0
-synopsis:            Straightforward validation monad. Convenient solution for validating web forms and APIs.
--- description:
-homepage:            typeable.io
+synopsis:            Straightforward validation monad.
+description:         Convenient solution for validating web forms and APIs.
+homepage:            https://github.com/typeable/validationt
 license:             BSD3
 license-file:        LICENSE
 author:              Typeable.io contributors
@@ -19,6 +19,10 @@ tested-with:         GHC == 7.10.3
                    , GHC == 8.0.2
                    , GHC == 8.2.2
                    , GHC == 8.4.1
+
+source-repository head
+  type:     git
+  location: git@github.com:typeable/validationt.git
 
 library
   exposed-modules:    Control.Monad.Validation
