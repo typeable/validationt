@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -48,14 +49,14 @@ instance (Ord k) => Ixed (MonoidMap k v) where
 instance (Ord k) => At (MonoidMap k v) where
   at key = _MonoidMap . at key
 
+#if MIN_VERSION_base(4,11,0)
 instance (Ord k, S.Semigroup v) => S.Semigroup (MonoidMap k v) where
-  (MonoidMap a) <> (MonoidMap b) =
-    MonoidMap $ M.unionWith (S.<>) a b
+  (<>) = mmAppend
+#endif
 
 instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap M.empty
-  mappend (MonoidMap a) (MonoidMap b) =
-    MonoidMap $ M.unionWith (<>) a b
+  mappend = mmAppend
 
 instance (ToJSON k, ToJSON v) => ToJSON (MonoidMap k v) where
   toJSON (MonoidMap m) = toJSON $ L.map toObj $ M.toList m
@@ -74,6 +75,14 @@ instance (Ord k, FromJSON k, FromJSON v) => FromJSON (MonoidMap k v) where
         key <- obj .: "id"
         val <- obj .: "value"
         return (key, val)
+
+#if MIN_VERSION_base(4,11,0)
+mmAppend :: (Ord k, S.Semigroup v) => MonoidMap k v -> MonoidMap k v -> MonoidMap k v
+mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (S.<>) a b
+#else
+mmAppend :: (Ord k, Monoid v) => MonoidMap k v -> MonoidMap k v -> MonoidMap k v
+mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (<>) a b
+#endif
 
 -- | Convenient for 'vZoom' as first artument. Will prevent generation
 -- of map with 'mempty' values
