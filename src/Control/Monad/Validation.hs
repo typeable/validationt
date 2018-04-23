@@ -17,7 +17,6 @@ import Data.Foldable as F
 import Data.List as L
 import Data.Map.Strict as M
 import Data.Monoid
-import qualified Data.Semigroup as S
 import Data.Text as T
 import Data.Vector as V
 import Test.QuickCheck
@@ -50,7 +49,7 @@ instance (Ord k) => At (MonoidMap k v) where
   at key = _MonoidMap . at key
 
 #if MIN_VERSION_base(4,11,0)
-instance (Ord k, S.Semigroup v) => S.Semigroup (MonoidMap k v) where
+instance (Ord k, Semigroup v) => Semigroup (MonoidMap k v) where
   (<>) = mmAppend
 #endif
 
@@ -77,12 +76,11 @@ instance (Ord k, FromJSON k, FromJSON v) => FromJSON (MonoidMap k v) where
         return (key, val)
 
 #if MIN_VERSION_base(4,11,0)
-mmAppend :: (Ord k, S.Semigroup v) => MonoidMap k v -> MonoidMap k v -> MonoidMap k v
-mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (S.<>) a b
+mmAppend :: (Ord k, Semigroup v) => MonoidMap k v -> MonoidMap k v -> MonoidMap k v
 #else
 mmAppend :: (Ord k, Monoid v) => MonoidMap k v -> MonoidMap k v -> MonoidMap k v
-mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (<>) a b
 #endif
+mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (<>) a b
 
 -- | Convenient for 'vZoom' as first artument. Will prevent generation
 -- of map with 'mempty' values
