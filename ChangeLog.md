@@ -1,5 +1,13 @@
 # Revision history for validationt
 
-## 0.1.0.0  -- YYYY-mm-dd
+## 0.2.1.0
 
-* First version. Released on an unsuspecting world.
+* GHC 8.4 support
+
+## 0.2.0.0
+
+* Fixes
+
+## 0.1.0.0
+
+* Initial release
