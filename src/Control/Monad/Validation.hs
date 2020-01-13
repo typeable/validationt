@@ -3,17 +3,38 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
-module Control.Monad.Validation where
+module Control.Monad.Validation
+  ( ValidationT(..)
+  , runValidationT
+  , runValidationTEither
+  , handleValidationT
+  , vError
+  , vWarning
+  , vErrorL
+  , vWarningL
+  , vZoom
+  , vZoomL
+  , mmSingleton
+  , setMempty
+  , neConcat
+  , textErrors
+  , _MonoidMap
+  , MonoidMap(..)
+  ) where
 
+import Control.Applicative
 import Control.Lens hiding ((.=))
 import Control.Monad.Base
 import Control.Monad.Catch
 import Control.Monad.Except
+import Control.Monad.Fail
 import Control.Monad.State.Strict
-import Control.Monad.Trans.Lift.Local
+import Control.Monad.Trans.Control
 import Data.Aeson
 import Data.Foldable as F
+import Data.Functor
 import Data.List as L
 import Data.Map.Strict as M
 import Data.Monoid
@@ -21,23 +42,32 @@ import Data.Text as T
 import Data.Vector as V
 import Test.QuickCheck
 
--- | Collects all throwed "warnings" throwed through StateT and "errors" throwed
--- through ExceptT to single value using Monoid
---  FIXME: give more instances like HReaderT and MonadBaseControl/MonadMask
+
+-- | Collects all thrown warnings in 'StateT' and errors
+-- in 'ExceptT' into a single value using 'Monoid'.
 newtype ValidationT e m a = ValidationT
   { unValidationT :: ExceptT e (StateT e m) a
   } deriving ( Functor, Applicative, Monad, MonadThrow, MonadCatch
-             , MonadBase b )
+             , MonadBase b, Alternative, MonadFix, MonadFail, Contravariant
+             , MonadIO, MonadPlus, MonadBaseControl b, MonadMask )
 
 instance MonadTrans (ValidationT e) where
   lift = ValidationT . lift . lift
 
-instance LiftLocal (ValidationT e) where
-  liftLocal _ l f = ValidationT . mapExceptT (mapStateT $ l f) . unValidationT
-
 -- | Map with 'Monoid' instance which 'mappend' its values
+--
+-- This can be used as the `e` in `ValidationT e m a` to provide different
+-- sets of errors and warnings for different keys.
+--
+-- >>> :{
+--   mconcat
+--   [ MonoidMap $ M.fromList [(1, "foo"), (2, "hello, "), (3, "oh no")]
+--   , MonoidMap $ M.fromList [(1, "bar"), (2, "world")]
+--   ]
+-- :}
+-- MonoidMap (fromList [(1,"foobar"),(2,"hello, world"),(3,"oh no")])
 newtype MonoidMap k v = MonoidMap (Map k v)
-  deriving (Eq, Ord, Show, Arbitrary)
+  deriving (Eq, Ord, Show, Arbitrary, Foldable)
 
 makePrisms ''MonoidMap
 
@@ -65,7 +95,7 @@ instance (ToJSON k, ToJSON v) => ToJSON (MonoidMap k v) where
         , "value" .= v ]
 
 instance (Ord k, FromJSON k, FromJSON v) => FromJSON (MonoidMap k v) where
-  parseJSON v = withArray "MonoidMap" go v
+  parseJSON = withArray "MonoidMap" go
     where
       go arr = do
         keyvals <- traverse fromObj arr
@@ -82,35 +112,71 @@ mmAppend :: (Ord k, Monoid v) => MonoidMap k v -> MonoidMap k v -> MonoidMap k v
 #endif
 mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (<>) a b
 
--- | Convenient for 'vZoom' as first artument. Will prevent generation
--- of map with 'mempty' values
+-- | Convenient for 'vZoom' as first argument. Will prevent generation
+-- of map with 'mempty' values.
 mmSingleton :: (Eq v, Monoid v, Ord k) => k -> v -> MonoidMap k v
-mmSingleton k = memptyWrap mempty $ MonoidMap . M.singleton k
+mmSingleton k v
+  | v == mempty = mempty
+  | otherwise   = MonoidMap . M.singleton k $ v
 
--- | Set given value to 'mempty'
+-- | Sets given value to 'mempty'.
 setMempty :: (Monoid s) => ASetter' s a -> a -> s
 setMempty setter a = set setter a mempty
 
-memptyWrap :: (Eq a, Monoid a) => b -> (a -> b) -> a -> b
-memptyWrap b f a
-  | a == mempty = b
-  | otherwise = f a
+-- | If the given container is not 'mempty', then use the given function to
+-- append all its elements and return 'Just' result.
+--
+-- >>> neConcat (<>) ["a", "b", "c"]
+-- Just "abc"
+--
+-- >>> neConcat (\a b -> a <> " " <> b) ["a", "b"]
+-- Just "a b"
+--
+-- >>> neConcat (<>) []
+-- Nothing
+neConcat :: Foldable f => (a -> a -> a) -> f a -> Maybe a
+neConcat f a
+  | F.null a  = Nothing
+  | otherwise = Just $ F.foldl1 f a
 
--- | If given container is not 'mempty', then use given function to
--- append all its elements and return 'Just' result
-neConcat
-  :: (Foldable f, Eq (f a), Monoid a, Monoid (f a))
-  => (a -> a -> a)
-  -> f a
-  -> Maybe a
-neConcat f = memptyWrap Nothing (Just . F.foldl' f mempty)
-
+-- | Returns the strings, concatanated with @", "@ if the list is not empty.
+--
+-- Returns Nothing if the list is empty
+--
+-- >>> textErrors ["foo", "bar"]
+-- Just "foo, bar"
+--
+-- >>> textErrors ["foo"]
+-- Just "foo"
+--
+-- >>> textErrors []
+-- Nothing
 textErrors :: [Text] -> Maybe Text
 textErrors = neConcat (\a b -> a <> ", " <> b)
 
--- | Returns `mempty` instead of error if no warnings was occured. So, your
--- error should have `Eq` instance to detect that any error was occured. Returns
--- Nothing for second element of tuple if compuration was interruped by 'vError'
+-- | Returns 'mempty' instead of error if no warnings have occured.
+-- Returns 'Nothing' as the second element of tuple if computation was
+-- interrupted by 'vError'.
+--
+-- Returns all concatenated errors and warnings and the result if no
+-- errors have occured (warnings could have occured).
+--
+-- >>> :{
+--  runValidationT $ do
+--    vWarning ["warning1"]
+--    vError ["error"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- (["error","warning1"],Nothing)
+--
+-- >>> :{
+--  runValidationT $ do
+--    vWarning ["warning1"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- (["warning1","warning2"],Just 8)
 runValidationT :: (Monoid e, Monad m) => ValidationT e m a -> m (e, Maybe a)
 runValidationT (ValidationT m) = do
   (res, warnings) <- runStateT (runExceptT m) mempty
@@ -118,6 +184,25 @@ runValidationT (ValidationT m) = do
     Left err -> (err <> warnings, Nothing)
     Right a  -> (warnings, Just a)
 
+-- | Like 'runValidationT' but doesn't return the result
+-- if any warning has occured.
+--
+-- >>> :{
+--  runValidationTEither $ do
+--    vWarning ["warning1"]
+--    vError ["error"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- Left ["error","warning1"]
+--
+-- >>> :{
+--  runValidationTEither $ do
+--    vWarning ["warning1"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- Left ["warning1","warning2"]
 runValidationTEither
   :: (Monoid e, Eq e, Monad m)
   => ValidationT e m a
@@ -128,28 +213,71 @@ runValidationTEither action = do
     Just a | err == mempty -> Right a
     _                      -> Left err
 
+-- | Like 'runValidationTEither', but takes an error handler instead of
+-- returning errors and warnings.
+--
+-- >>> :{
+--  handleValidationT (\_ -> return 11) $ do
+--    vWarning ["warning1"]
+--    vError ["error"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- 11
+--
+-- >>> :{
+--  handleValidationT (\_ -> return 11) $ do
+--    vWarning ["warning1"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- 11
 handleValidationT
   :: (Monoid e, Monad m, Eq e)
   => (e -> m a)
   -> ValidationT e m a
   -> m a
-handleValidationT handler action = do
+handleValidationT handler action =
   runValidationTEither action >>= either handler return
 
--- | Stops further execution of validation
+-- | Stops further execution and appends the given error.
 vError :: (Monad m) => e -> ValidationT e m a
 vError e = ValidationT $ throwError e
 
--- | Does not stop further execution, append warning to
+-- | Does not stop further execution and appends the given warning.
 vWarning :: (Monad m, Monoid e) => e -> ValidationT e m ()
 vWarning e = ValidationT $ modify' (<> e)
 
+-- | Like 'vError' but allows you to use a setter to insert an error somewhere
+-- deeper into an empty ('mempty') "e" from "ValidationT e m x", which is then
+-- combined with all gathered warnings.
 vErrorL :: (Monad m, Monoid e) => ASetter' e a -> a -> ValidationT e m x
 vErrorL l a = vError $ setMempty l a
 
+-- | Like 'vWarning' but allows you to use a setter to insert an error somewhere
+-- deeper into an empty ('mempty') "e" from "ValidationT e m x", which is then
+-- combined with all gathered warnings.
 vWarningL :: (Monad m, Monoid e) => ASetter' e a -> a -> ValidationT e m ()
 vWarningL l a = vWarning $ setMempty l a
 
+-- | Allows you apply a transformation to the "e" in "ValidationT e m x".
+--
+-- >>> :{
+--runValidationT . vZoom (Data.Map.singleton "password errors") $ do
+--  vWarning ["warning1"]
+--  vError ["error"]
+--  vWarning ["warning2"]
+--  return 8
+-- :}
+-- (fromList [("password errors",["error","warning1"])],Nothing)
+--
+-- >>> :{
+--  runValidationT . vZoom (Data.Map.singleton "password errors") $ do
+--    vWarning ["warning1"]
+--    vWarning ["warning2"]
+--    return 8
+-- :}
+-- (fromList [("password errors",["warning1","warning2"])],Just 8)
 vZoom
   :: (Monad m, Monoid a, Monoid b)
   => (a -> b)
@@ -159,11 +287,12 @@ vZoom up action = do
   (err, res) <- lift $ runValidationT action
   case res of
     Nothing -> vError $ up err
-    Just a  -> vWarning (up err) *> return a
+    Just a  -> vWarning (up err) $> a
 
+-- | Like 'vZoom' but takes a setter instead of a function.
 vZoomL
   :: (Monad m, Monoid a, Monoid b)
   => ASetter' b a
   -> ValidationT a m x
   -> ValidationT b m x
-vZoomL l action = vZoom (setMempty l) action
+vZoomL l = vZoom (setMempty l)
