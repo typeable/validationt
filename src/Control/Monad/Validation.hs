@@ -11,7 +11,6 @@ import Control.Monad.Base
 import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.State.Strict
-import Control.Monad.Trans.Lift.Local
 import Data.Aeson
 import Data.Foldable as F
 import Data.List as L
@@ -31,9 +30,6 @@ newtype ValidationT e m a = ValidationT
 
 instance MonadTrans (ValidationT e) where
   lift = ValidationT . lift . lift
-
-instance LiftLocal (ValidationT e) where
-  liftLocal _ l f = ValidationT . mapExceptT (mapStateT $ l f) . unValidationT
 
 -- | Map with 'Monoid' instance which 'mappend' its values
 newtype MonoidMap k v = MonoidMap (Map k v)
