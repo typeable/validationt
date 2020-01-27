@@ -92,7 +92,7 @@ setMempty setter a = set setter a mempty
 neConcat :: Foldable f => (a -> a -> a) -> f a -> Maybe a
 neConcat f a
   | F.null a  = Nothing
-  | otherwise = Just $ F.foldl1 f a
+  | otherwise = Just $ F.foldr1 f a
 
 textErrors :: [Text] -> Maybe Text
 textErrors = neConcat (\a b -> a <> ", " <> b)
