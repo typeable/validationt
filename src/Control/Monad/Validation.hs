@@ -81,25 +81,18 @@ mmAppend (MonoidMap a) (MonoidMap b) = MonoidMap $ M.unionWith (<>) a b
 -- | Convenient for 'vZoom' as first artument. Will prevent generation
 -- of map with 'mempty' values
 mmSingleton :: (Eq v, Monoid v, Ord k) => k -> v -> MonoidMap k v
-mmSingleton k = memptyWrap mempty $ MonoidMap . M.singleton k
+mmSingleton k v
+  | v == mempty = mempty
+  | otherwise   = MonoidMap . M.singleton k $ v
 
 -- | Set given value to 'mempty'
 setMempty :: (Monoid s) => ASetter' s a -> a -> s
 setMempty setter a = set setter a mempty
 
-memptyWrap :: (Eq a, Monoid a) => b -> (a -> b) -> a -> b
-memptyWrap b f a
-  | a == mempty = b
-  | otherwise = f a
-
--- | If given container is not 'mempty', then use given function to
--- append all its elements and return 'Just' result
-neConcat
-  :: (Foldable f, Eq (f a), Monoid a, Monoid (f a))
-  => (a -> a -> a)
-  -> f a
-  -> Maybe a
-neConcat f = memptyWrap Nothing (Just . F.foldl' f mempty)
+neConcat :: Foldable f => (a -> a -> a) -> f a -> Maybe a
+neConcat f a
+  | F.null a  = Nothing
+  | otherwise = Just $ F.foldr1 f a
 
 textErrors :: [Text] -> Maybe Text
 textErrors = neConcat (\a b -> a <> ", " <> b)
