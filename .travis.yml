@@ -4,15 +4,13 @@ language: haskell
 git:
   depth: 5
 
-cabal: "2.4"
-
 cache:
   directories:
   - "$HOME/.cabal/store"
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
 
-matrix:
+jobs:
   include:
 
   # Cabal
