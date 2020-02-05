@@ -4,48 +4,35 @@ language: haskell
 git:
   depth: 5
 
-cabal: "2.4"
-
 cache:
   directories:
   - "$HOME/.cabal/store"
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
 
-matrix:
+jobs:
   include:
-
-  # Cabal
+  - ghc: 8.6.5
+    env: SNAPSHOT="lts-14.22"
+  - ghc: 8.6.4
+    env: SNAPSHOT="lts-13.19"
+  - ghc: 8.6.3
+    env: SNAPSHOT="lts-13.11"
   - ghc: 8.4.4
-  - ghc: 8.6.5
-
-  # Stack
-  - ghc: 8.6.5
-    env: STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
+    env: SNAPSHOT="lts-12.26"
 
 install:
   - |
-    if [ -z "$STACK_YAML" ]; then
-      ghc --version
-      cabal --version
-      cabal new-update
-      cabal new-build --enable-tests --enable-benchmarks
-    else
-      # install stack
-      curl -sSL https://get.haskellstack.org/ | sh
+    # install stack
+    curl -sSL https://get.haskellstack.org/ | sh
 
-      # build project with stack
-      stack --version
-      stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
-    fi
+    # build project with stack
+    stack --version
+    stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks --resolver=$SNAPSHOT
 
 script:
   - |
-    if [ -z "$STACK_YAML" ]; then
-      cabal new-test --enable-tests
-    else
-      stack test --system-ghc
-    fi
+    stack test --system-ghc
 
 notifications:
   email: false

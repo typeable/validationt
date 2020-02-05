@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                validationt
-version:             0.2.1.0
+version:             0.3.0
 synopsis:            Straightforward validation monad.
 description:         Convenient solution for validating web forms and APIs.
 homepage:            https://github.com/typeable/validationt
@@ -50,21 +50,12 @@ library
                        -Wmissing-export-lists
 
 test-suite doctest
+  default-language: Haskell2010
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   ghc-options: -Wall
   main-is: Doc.hs
-  build-depends:       base >=4.8 && < 5
-                     , aeson >= 1.0
-                     , doctest
-                     , containers
-                     , exceptions
-                     , lens
-                     , monad-control
-                     , mtl
-                     , QuickCheck
-                     , text
-                     , transformers
-                     , transformers-base
-                     , vector
-                     , doctest
+  build-depends:
+      base >= 4.10.0.0
+    , doctest >= 0.11.4
+    , validationt
