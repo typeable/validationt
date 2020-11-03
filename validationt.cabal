@@ -3,8 +3,9 @@
 
 name:                validationt
 version:             0.3.1
-synopsis:            Straightforward validation monad.
-description:         Convenient solution for validating web forms and APIs.
+synopsis:            Straightforward validation monad
+description:         A simple data validation library. The main idea is to provide an easy way to
+validate web form data by aggregating errors for each field.
 homepage:            https://github.com/typeable/validationt
 license:             BSD3
 license-file:        LICENSE

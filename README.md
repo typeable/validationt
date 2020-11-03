@@ -2,7 +2,8 @@
 
 # ValidationT
 
-A very small validation data library.
+A simple data validation library. The main idea is to provide an easy way to
+validate web form data by aggregating errors for each field.
 
 ## Usage
 
