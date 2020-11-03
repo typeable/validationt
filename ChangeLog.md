@@ -2,9 +2,10 @@
 
 ## 0.3.0
 
-* Added documentation.
-* Fixed `textErrors` behaviour.
-* Dropped `transformers-lift` dependency.
+* Added documentation
+* Fixed `textErrors` behaviour
+* Dropped `transformers-lift` dependency
+* The public interface became slightly more restricted – it is now constrained by the explicit export list
 
 ## 0.2.1.0
 
