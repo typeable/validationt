@@ -16,6 +16,7 @@ module Control.Monad.Validation
   , vWarningL
   , vZoom
   , vZoomL
+  , vPromote
   , mmSingleton
   , setMempty
   , neConcat
@@ -143,12 +144,12 @@ neConcat f a
 textErrors :: [Text] -> Maybe Text
 textErrors = neConcat (\a b -> a <> ", " <> b)
 
--- | Returns 'mempty' instead of error if no warnings have occured.
+-- | Returns 'mempty' instead of error if no warnings have occurred.
 -- Returns 'Nothing' as the second element of tuple if computation was
 -- interrupted by 'vError'.
 --
 -- Returns all concatenated errors and warnings and the result if no
--- errors have occured (warnings could have occured).
+-- errors have occurred (warnings could have occurred).
 --
 -- >>> :{
 --  runValidationT $ do
@@ -174,7 +175,7 @@ runValidationT (ValidationT m) = do
     Right a  -> (warnings, Just a)
 
 -- | Like 'runValidationT' but doesn't return the result
--- if any warning has occured.
+-- if any warning has occurred.
 --
 -- >>> :{
 --  runValidationTEither $ do
@@ -285,3 +286,12 @@ vZoomL
   -> ValidationT a m x
   -> ValidationT b m x
 vZoomL l = vZoom (setMempty l)
+
+-- | Turn any warnings the have occurred into errors.
+vPromote
+  :: (Monad m, Monoid a, Eq a)
+  => ValidationT a m x
+  -> ValidationT a m x
+vPromote m = do
+  err <- lift $ runValidationTEither m
+  either vError return err
