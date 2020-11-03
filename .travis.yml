@@ -12,6 +12,8 @@ cache:
 
 jobs:
   include:
+  - ghc: 8.10.2
+    env: SNAPSHOT="nightly-2020-11-03"
   - ghc: 8.8.4
     env: SNAPSHOT="lts-16.20"
   - ghc: 8.6.5
