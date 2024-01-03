@@ -30,7 +30,6 @@ import Control.Lens hiding ((.=))
 import Control.Monad.Base
 import Control.Monad.Catch
 import Control.Monad.Except
-import Control.Monad.Fail
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Control
 import Data.Aeson
@@ -38,11 +37,14 @@ import Data.Foldable as F
 import Data.Functor
 import Data.List as L
 import Data.Map.Strict as M
-import Data.Monoid
 import Data.Text as T
 import Data.Vector as V
 import Test.QuickCheck
 
+#if MIN_VERSION_base(4,18,0)
+import Control.Monad
+import Control.Monad.Fix
+#endif
 
 -- | Collects all thrown warnings in 'StateT' and errors
 -- in 'ExceptT' into a single value using 'Monoid'.
@@ -86,7 +88,7 @@ instance (Ord k, Semigroup v) => Semigroup (MonoidMap k v) where
 
 instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap M.empty
-  mappend = mmAppend
+  mappend = (<>)
 
 instance (ToJSON k, ToJSON v) => ToJSON (MonoidMap k v) where
   toJSON (MonoidMap m) = toJSON $ L.map toObj $ M.toList m
