@@ -41,7 +41,7 @@ import Data.Text as T
 import Data.Vector as V
 import Test.QuickCheck
 
-#if MIN_VERSION_base(4,18,0)
+#if MIN_VERSION_mtl(2,3,0)
 import Control.Monad
 import Control.Monad.Fix
 #endif
