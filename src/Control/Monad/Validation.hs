@@ -30,6 +30,7 @@ import Control.Lens hiding ((.=))
 import Control.Monad.Base
 import Control.Monad.Catch
 import Control.Monad.Except
+import Control.Monad.Fail
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Control
 import Data.Aeson
