@@ -29,14 +29,14 @@ source-repository head
 
 library
   exposed-modules:    Control.Monad.Validation
-  build-depends:       base >=4.8 && < 5
-                     , aeson >= 1.0
+  build-depends:       base >=4.10 && < 5
+                     , aeson >=1.0
                      , containers
-                     , exceptions
+                     , exceptions >=0.9
                      , lens
                      , monad-control
-                     , mtl
-                     , QuickCheck
+                     , mtl <2.3 || >2.3
+                     , QuickCheck >=2.8.2
                      , text
                      , transformers
                      , transformers-base
